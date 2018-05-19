@@ -1,10 +1,14 @@
 #ifndef _DragonTree_HPP_
 #define _DragonTree_HPP_
 
+#include <iostream>
+
 #include "network.hpp"
 #include "routefunc.hpp"
 #include "flatfly_onchip.hpp"
 #include "fattree.hpp"
+
+using namespace std;
 
 class DragonTree : public Network {
 	FlatFlyOnChip *fly_net;
