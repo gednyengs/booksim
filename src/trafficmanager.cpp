@@ -1156,9 +1156,7 @@ void TrafficManager::_Step( )
                 assert(f->subnetwork == subnet);
 
                 int const c = f->cl;
-
                 if(f->head) {
-	  
                     if (_lookahead_routing) {
                         if(!_noq) {
                             const FlitChannel * inject = _net[subnet]->GetInject(n);
@@ -1194,7 +1192,6 @@ void TrafficManager::_Step( )
                 ++_outstanding_credits[c][subnet][n];
                 _outstanding_classes[n][subnet][f->vc].push(c);
 #endif
-
                 dest_buf->SendingFlit(f);
 	
                 if(_pri_type == network_age_based) {
@@ -1213,6 +1210,7 @@ void TrafficManager::_Step( )
                 }
                 f->itime = _time;
 
+
                 // Pass VC "back"
                 if(!_partial_packets[n][c].empty() && !f->tail) {
                     Flit * const nf = _partial_packets[n][c].front();
@@ -1229,7 +1227,6 @@ void TrafficManager::_Step( )
 #ifdef TRACK_FLOWS
                 ++_injected_flits[c][n];
 #endif
-	
                 _net[subnet]->WriteFlit(f, n);
 	
             }

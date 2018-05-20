@@ -113,6 +113,7 @@ Network * Network::New(const Configuration & config, const string & name)
     DragonFlyNew::RegisterRoutingFunctions() ;
     n = new DragonFlyNew(config, name);
   } else if ( topo == "dragontree" ) {
+    DragonTree::RegisterRoutingFunctions();
     n = new DragonTree(config, name);
   } 
   else {
