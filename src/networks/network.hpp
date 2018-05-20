@@ -52,6 +52,7 @@ protected:
   int _nodes;
   int _channels;
   int _classes;
+  string _topology;
 
   vector<Router *> _routers;
 

@@ -57,10 +57,13 @@ Network::Network( const Configuration &config, const string & name ) :
   _nodes    = -1; 
   _channels = -1;
   _classes  = config.GetInt("classes");
+  _topology = config.GetStr("topology");
 }
 
 Network::~Network( )
 {
+  if(_topology == "dragontree") return;
+
   for ( int r = 0; r < _size; ++r ) {
     if ( _routers[r] ) delete _routers[r];
   }
