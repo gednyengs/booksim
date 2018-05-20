@@ -72,6 +72,8 @@ void DragonTree::init(const Configuration &config)
 	for (int i = 0; i < num_vcs; i++) {
 		active_lock_tbl[i] = -1;
 	}
+	node_net_map.resize(_nodes);
+	credit_queues.resize(_nodes);
 }
 
 DragonTree::~DragonTree()
@@ -84,31 +86,8 @@ DragonTree::~DragonTree()
 void DragonTree::WriteFlit(Flit* f, int source){
 	cout << "[DEBUG} WriteFlit entry" << endl;
 
-	if (!f->head) {
-		cout << "flit id " << f->id << " is not head" << endl;
-		Network *net = map_packet_to_net[f->pid];
-		net->WriteFlit(f, source);
-		if (routing != 0) {
-			if(net == fly_net) {
-				cout << "We should not be here 1" << endl;
-				fattree_net->WriteFlit(NULL, source);
-			} else {
-				cout << "We should not be here 2 " << endl;
-				fly_net->WriteFlit(NULL, source);
-			}
-		}
-	} else {
-		cout << "flit id " << f->id << " is head" << endl;
-		assert(routing == 0);
-		if (routing == 0) {
-				fly_net->WriteFlit(f, source);
-				//fattree_net->WriteFlit(NULL, source);
-				map_packet_to_net[f->pid] = fly_net;
-	    }		
-	}
-	if (f->tail) {
-		map_packet_to_net.erase(f->pid);
-	}
+	assert(routing == 0);
+	fly_net->WriteFlit(f, source);
 	cout << "[DEBUG} WriteFlit exit" << endl;
 }
 
@@ -116,13 +95,21 @@ Credit *DragonTree::ReadCredit(int source)
 {
 	cout << "[DEBUG} ReadCredit entry" << endl;
 	Credit *fly_credit = fly_net->ReadCredit(source);
-	// Credit *fat_credit = fattree_net->ReadCredit(source);
+	Credit *fat_credit = fattree_net->ReadCredit(source);
 
-	credit_queue.push_back(fly_credit);
-	// credit_queue.emplace_back(fat_credit);
+	Credit *c = (Credit *) NULL;
+	if(fly_credit) {
+		credit_queues[source].push_back(fly_credit);
+	}
+	if(fat_credit) {
+		credit_queues[source].push_back(fat_credit);
+	}
+	
+	if(!credit_queues[source].empty()) {
+		c = credit_queues[source].front();
+		credit_queues[source].pop_front();
+	}
 
-	Credit *c = credit_queue.front();
-	credit_queue.pop_front();
 	cout << "[DEBUG} ReadFlit exit" << endl;
 	return c;
 }
@@ -130,18 +117,15 @@ Credit *DragonTree::ReadCredit(int source)
 void DragonTree::WriteCredit(Credit *c, int dest) 
 {
 	cout << "[DEBUG} WriteCredit entry" << endl;
-	if(!credit_destinations.empty()) {
-		int dest_net = credit_destinations.front();
-		credit_destinations.pop_front();
-		assert(dest_net == 1);
-		if(dest_net == 1) {
-			fly_net->WriteCredit(c, dest);
-			// fattree_net->WriteCredit(NULL, dest);
-		} else if(dest_net == 2) {
-			fattree_net->WriteCredit(c, dest);
-			fly_net->WriteCredit(NULL, dest);
-		}
-	}
+
+	assert(node_net_map[dest] > 0);
+	/*
+	if(node_net_map[dest] == 1) {
+		fly_net->WriteCredit(c, dest);
+	} else if(node_net_map[dest] == 2) {
+		fattree_net->WriteCredit(c, dest);
+	}*/
+	fly_net->WriteCredit(c, dest);
 	cout << "[DEBUG} WriteCredit exit" << endl;
 
 }
@@ -154,12 +138,15 @@ Flit* DragonTree::ReadFlit(int dest) {
 	cout << "[DEBUG] ReadFlit entry" << endl;
 	static int interleaver_curr = 1;
 
-	//Flit* fattree_flit = fattree_net->ReadFlit(dest);
 	Flit* fly_flit = fly_net->ReadFlit(dest);
+	Flit* fat_flit = fattree_net->ReadFlit(dest);
 
 	// first: enqueue flit
+	read_from_flynet = false;
+	read_from_fatnet = false;
 	if(fly_flit) {
 		fly_vc_buf[fly_flit->vc].push_back(fly_flit);
+		read_from_flynet = true;
 	} else {
 		null_queue.push_back((Flit *) NULL);
 	}
@@ -178,6 +165,8 @@ Flit* DragonTree::ReadFlit(int dest) {
 	}
 
 	Flit *f = NULL;
+	node_net_map[dest] = 0;
+
 	if(interleaver_curr == 1) {
 		for(int i = 0; i < num_vcs; i++) {
 			if(!fly_vc_buf[i].empty()) {
@@ -187,7 +176,7 @@ Flit* DragonTree::ReadFlit(int dest) {
 				break;
 			}
 		}
-		if(f) credit_destinations.push_back(1);
+		if(f) node_net_map[dest] = 1;
 	} else if(interleaver_curr == 0) {
 		assert(null_queue.size() > 0);
 		null_queue.pop_front();
@@ -200,19 +189,19 @@ Flit* DragonTree::ReadFlit(int dest) {
 void DragonTree::ReadInputs()
 {
 	fly_net->ReadInputs();
-	//fattree_net->ReadInputs();
+	fattree_net->ReadInputs();
 }
 
 void DragonTree::Evaluate()
 {
 	fly_net->Evaluate();
-	//fattree_net->Evaluate();
+	fattree_net->Evaluate();
 }
 
 void DragonTree::WriteOutputs()
 {
 	fly_net->WriteOutputs();
-	//fattree_net->WriteOutputs();
+	fattree_net->WriteOutputs();
 }
 
 void DragonTree::RegisterRoutingFunctions() {

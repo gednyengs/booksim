@@ -25,10 +25,13 @@ class DragonTree : public Network {
 	// state variables
 	vector<deque<Flit *> > fly_vc_buf, fat_vc_buf;
 	deque<int> credit_destinations;
-	deque<Credit *> credit_queue;
+	vector<deque<Credit *> > credit_queues;
 	deque<Flit *> null_queue;
+	vector<int> node_net_map;
 	int num_vcs;
 	int *active_lock_tbl;
+	bool read_from_flynet;
+	bool read_from_fatnet;
 
 	std::map<int, Network*> map_packet_to_net;
 
