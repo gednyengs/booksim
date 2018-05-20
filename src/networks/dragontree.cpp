@@ -66,8 +66,12 @@ void DragonTree::init(const Configuration &config)
 	// initialize state variables
 	num_vcs = config.GetInt("num_vcs");
 	assert(num_vcs >= 0 && "[dragontree] incorrect number of vcs");
-	fly_vc_buf.resize(num_vcs);
-	fat_vc_buf.resize(num_vcs);
+	fly_vc_buf.resize(_nodes);
+	fat_vc_buf.resize(_nodes);
+	for(int i = 0; i < _nodes; i++) {
+		fly_vc_buf[i].resize(num_vcs);
+		fat_vc_buf[i].resize(num_vcs);
+	}
 	active_lock_tbl = new int[num_vcs];
 	for (int i = 0; i < num_vcs; i++) {
 		active_lock_tbl[i] = -1;
@@ -85,9 +89,39 @@ DragonTree::~DragonTree()
 
 void DragonTree::WriteFlit(Flit* f, int source){
 	cout << "[DEBUG} WriteFlit entry" << endl;
+	
+	// routing decisions are made from head flits
+	if(f->head) {
+		// deterministic routing
+		if(routing == 0) {
+			map_packet_to_net[f->pid] = fly_net;
+		}
 
-	assert(routing == 0);
-	fly_net->WriteFlit(f, source);
+		// oblivious routing
+		else if(routing == 1) {
+			// flip a coin and choose one of the two subnets fairly
+			if(RandomInt(1) == 0) {
+				map_packet_to_net[f->pid] = fly_net;
+			} else {
+				map_packet_to_net[f->pid] = fattree_net;
+			}
+		}
+		
+		// adaptive routing
+		else if(routing == 2) {
+			// 
+		}
+	} 
+
+	// all other flits follow the decision made by the head flit
+	(map_packet_to_net[f->pid])->WriteFlit(f, source);
+
+	// remove network mapping if flit is tail flit
+	if(f->tail) {
+		map_packet_to_net.erase(f->pid);
+	}
+
+
 	cout << "[DEBUG} WriteFlit exit" << endl;
 }
 
@@ -117,17 +151,16 @@ Credit *DragonTree::ReadCredit(int source)
 void DragonTree::WriteCredit(Credit *c, int dest) 
 {
 	cout << "[DEBUG} WriteCredit entry" << endl;
-
 	assert(node_net_map[dest] > 0);
-	/*
+	// if last ReadFlit was from flynet
 	if(node_net_map[dest] == 1) {
 		fly_net->WriteCredit(c, dest);
-	} else if(node_net_map[dest] == 2) {
+	}
+	// if last ReadFlit was from fattree_net
+	else if(node_net_map[dest] == 2) {
 		fattree_net->WriteCredit(c, dest);
-	}*/
-	fly_net->WriteCredit(c, dest);
+	}
 	cout << "[DEBUG} WriteCredit exit" << endl;
-
 }
 
 Flit* DragonTree::ReadFlit(int dest) {
@@ -142,26 +175,53 @@ Flit* DragonTree::ReadFlit(int dest) {
 	Flit* fat_flit = fattree_net->ReadFlit(dest);
 
 	// first: enqueue flit
-	read_from_flynet = false;
-	read_from_fatnet = false;
-	if(fly_flit) {
-		fly_vc_buf[fly_flit->vc].push_back(fly_flit);
-		read_from_flynet = true;
+	if(fly_flit && fat_flit) {
+		fly_vc_buf[dest][fly_flit->vc].push_back(fly_flit);
+		fat_vc_buf[dest][fat_flit->vc].push_back(fat_flit);
+	} else if (fly_flit) {
+		fly_vc_buf[dest][fly_flit->vc].push_back(fly_flit);
+	} else if (fat_flit) {
+		fat_vc_buf[dest][fat_flit->vc].push_back(fat_flit);
 	} else {
 		null_queue.push_back((Flit *) NULL);
 	}
 
 	// second: readout
+	// if the null queue is empty, go to the flynet queue
 	if(interleaver_curr == 0 && null_queue.empty()) interleaver_curr = 1;
+	// if flynet queue is empty, go to fattree queue
 	if(interleaver_curr == 1) {
 		bool all_empty = true;
 		for(int i = 0; i < num_vcs; i++) {
-			if(!fly_vc_buf[i].empty()) {
+			if(!fly_vc_buf[dest][i].empty()) {
 				all_empty = false;
 				break;
 			}
 		}
-		if(all_empty) interleaver_curr = 0;
+		if(all_empty) interleaver_curr = 2;
+	}
+	if(interleaver_curr == 2) {
+		bool all_empty = true;
+		for(int i = 0; i < num_vcs; i++) {
+			if(!fat_vc_buf[dest][i].empty()) {
+				all_empty = false;
+				break;
+			}
+		}
+		if(all_empty) {
+			if(!null_queue.empty()) { interleaver_curr = 0; }
+			else {
+				bool flyq_empty = true;
+				for(int i = 0; i < num_vcs; i++) {
+					if(!fly_vc_buf[dest][i].empty()) {
+						flyq_empty = false;
+						break;
+					}
+				}
+				if(flyq_empty) { interleaver_curr = 0; }
+				else { interleaver_curr = 1; }
+			}
+		}
 	}
 
 	Flit *f = NULL;
@@ -169,17 +229,27 @@ Flit* DragonTree::ReadFlit(int dest) {
 
 	if(interleaver_curr == 1) {
 		for(int i = 0; i < num_vcs; i++) {
-			if(!fly_vc_buf[i].empty()) {
-				f = fly_vc_buf[i].front();
-				fly_vc_buf[i].pop_front();
-				interleaver_curr = 0;
+			if(!fly_vc_buf[dest][i].empty()) {
+				f = fly_vc_buf[dest][i].front();
+				fly_vc_buf[dest][i].pop_front();
+				interleaver_curr = 2;
 				break;
 			}
 		}
 		if(f) node_net_map[dest] = 1;
-	} else if(interleaver_curr == 0) {
-		assert(null_queue.size() > 0);
-		null_queue.pop_front();
+	} else if(interleaver_curr == 2) {
+		for(int i = 0; i < num_vcs; i++) {
+			if(!fat_vc_buf[dest][i].empty()) {
+				f = fat_vc_buf[dest][i].front();
+				fat_vc_buf[dest][i].pop_front();
+				interleaver_curr = 0;
+				break;
+			}
+		}
+		if(f) node_net_map[dest] = 2;
+	} else {
+		interleaver_curr = 1;
+		if(!null_queue.empty()) { null_queue.pop_front(); }
 	}
 
 	cout << "[DEBUG] ReadFlit exit" << endl;

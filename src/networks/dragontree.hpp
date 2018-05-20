@@ -23,7 +23,7 @@ class DragonTree : public Network {
 	int routing; // 0 = deterministic, 1 = oblivious, 2 = adaptive
 
 	// state variables
-	vector<deque<Flit *> > fly_vc_buf, fat_vc_buf;
+	vector< vector< deque<Flit *> > > fly_vc_buf, fat_vc_buf;
 	deque<int> credit_destinations;
 	vector<deque<Credit *> > credit_queues;
 	deque<Flit *> null_queue;
