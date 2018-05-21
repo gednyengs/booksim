@@ -46,6 +46,8 @@ public:
 			      Configuration const * const config = NULL);
 };
 
+
+
 class PermutationTrafficPattern : public TrafficPattern {
 protected:
   PermutationTrafficPattern(int nodes);
@@ -120,6 +122,16 @@ class UniformRandomTrafficPattern : public RandomTrafficPattern {
 public:
   UniformRandomTrafficPattern(int nodes);
   virtual int dest(int source);
+};
+
+class DragonTreeTrafficPattern : public TrafficPattern {
+ UniformRandomTrafficPattern *uniform_pattern;
+ BitCompTrafficPattern *bitcomp_pattern;
+ int count;
+public:
+ DragonTreeTrafficPattern(int nodes);
+ ~DragonTreeTrafficPattern();
+ int dest(int source);
 };
 
 class UniformBackgroundTrafficPattern : public RandomTrafficPattern {

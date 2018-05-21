@@ -30,8 +30,8 @@
 
 // Flow control
 // Total number of VCs must match the above assignments
-num_vcs     = 8;
-vc_buf_size = 4;
+num_vcs     = 2;
+vc_buf_size = 128;
 
 wait_for_tail_credit = 0;
 

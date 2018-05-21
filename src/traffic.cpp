@@ -65,7 +65,9 @@ TrafficPattern * TrafficPattern::New(string const & pattern, int nodes,
   vector<string> params = tokenize_str(param_str);
   
   TrafficPattern * result = NULL;
-  if(pattern_name == "bitcomp") {
+  if(pattern_name == "dragontreepattern") {
+	result = new DragonTreeTrafficPattern(nodes);
+  } else  if(pattern_name == "bitcomp") {
     result = new BitCompTrafficPattern(nodes);
   } else if(pattern_name == "transpose") {
     result = new TransposeTrafficPattern(nodes);
@@ -196,6 +198,26 @@ TrafficPattern * TrafficPattern::New(string const & pattern, int nodes,
     exit(-1);
   }
   return result;
+}
+
+DragonTreeTrafficPattern::DragonTreeTrafficPattern(int nodes) : TrafficPattern(nodes)
+{
+	uniform_pattern = new UniformRandomTrafficPattern(nodes);
+	bitcomp_pattern = new BitCompTrafficPattern(nodes);
+	count = 0;
+}
+
+DragonTreeTrafficPattern::~DragonTreeTrafficPattern()
+{
+	delete uniform_pattern;
+	delete bitcomp_pattern;
+}
+
+int DragonTreeTrafficPattern::dest(int source)
+{
+	count++;
+	if(count <= 10000) return uniform_pattern->dest(source);
+	return bitcomp_pattern->dest(source);
 }
 
 PermutationTrafficPattern::PermutationTrafficPattern(int nodes)
