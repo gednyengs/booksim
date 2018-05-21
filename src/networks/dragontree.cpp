@@ -78,6 +78,12 @@ void DragonTree::init(const Configuration &config)
 	}
 	node_net_map.resize(_nodes);
 	credit_queues.resize(_nodes);
+	load_fly.resize(_nodes);
+	load_fat.resize(_nodes);
+	for(int i = 0; i < _nodes; i++) {
+		load_fly[i].resize(num_vcs);
+		load_fat[i].resize(num_vcs);
+	}
 }
 
 DragonTree::~DragonTree()
@@ -109,12 +115,29 @@ void DragonTree::WriteFlit(Flit* f, int source){
 		
 		// adaptive routing
 		else if(routing == 2) {
-			// 
+			int fly_local_load = load_fly[source][f->vc];
+			int fat_local_load = load_fat[source][f->vc];
+			if(fat_local_load > fly_local_load) {
+				map_packet_to_net[f->pid] = fattree_net;
+			} else {
+				map_packet_to_net[f->pid] = fly_net;
+			}
 		}
 	} 
 
 	// all other flits follow the decision made by the head flit
 	(map_packet_to_net[f->pid])->WriteFlit(f, source);
+
+	// update local channel load estimates for adaptive routing
+	if(routing == 2) {
+		Network *net = map_packet_to_net[f->pid];
+		if(net == fly_net) {
+			load_fly[source][f->vc] -= 1;
+		} else if(net == fattree_net) {
+			load_fat[source][f->vc] -= 1;
+		}
+
+	}
 
 	// remove network mapping if flit is tail flit
 	if(f->tail) {
@@ -134,9 +157,17 @@ Credit *DragonTree::ReadCredit(int source)
 	Credit *c = (Credit *) NULL;
 	if(fly_credit) {
 		credit_queues[source].push_back(fly_credit);
+		std::set<int>::iterator it;
+		for(it = fly_credit->vc.begin(); it != fly_credit->vc.end(); it++) {
+			load_fly[source][*it] += 1;
+		}
 	}
 	if(fat_credit) {
 		credit_queues[source].push_back(fat_credit);
+		std::set<int>::iterator it;
+		for(it = fat_credit->vc.begin(); it != fat_credit->vc.end(); it++) {
+			load_fat[source][*it] += 1;
+		}
 	}
 	
 	if(!credit_queues[source].empty()) {

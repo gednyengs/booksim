@@ -32,7 +32,7 @@ class DragonTree : public Network {
 	int *active_lock_tbl;
 	bool read_from_flynet;
 	bool read_from_fatnet;
-
+	vector< vector<int> > load_fly, load_fat;
 	std::map<int, Network*> map_packet_to_net;
 
 	// helper functions
