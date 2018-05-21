@@ -94,7 +94,6 @@ DragonTree::~DragonTree()
 }
 
 void DragonTree::WriteFlit(Flit* f, int source){
-	cout << "[DEBUG} WriteFlit entry" << endl;
 	
 	// routing decisions are made from head flits
 	if(f->head) {
@@ -144,13 +143,10 @@ void DragonTree::WriteFlit(Flit* f, int source){
 		map_packet_to_net.erase(f->pid);
 	}
 
-
-	cout << "[DEBUG} WriteFlit exit" << endl;
 }
 
 Credit *DragonTree::ReadCredit(int source)
 {
-	cout << "[DEBUG} ReadCredit entry" << endl;
 	Credit *fly_credit = fly_net->ReadCredit(source);
 	Credit *fat_credit = fattree_net->ReadCredit(source);
 
@@ -175,13 +171,11 @@ Credit *DragonTree::ReadCredit(int source)
 		credit_queues[source].pop_front();
 	}
 
-	cout << "[DEBUG} ReadFlit exit" << endl;
 	return c;
 }
 
 void DragonTree::WriteCredit(Credit *c, int dest) 
 {
-	cout << "[DEBUG} WriteCredit entry" << endl;
 	assert(node_net_map[dest] > 0);
 	// if last ReadFlit was from flynet
 	if(node_net_map[dest] == 1) {
@@ -191,7 +185,6 @@ void DragonTree::WriteCredit(Credit *c, int dest)
 	else if(node_net_map[dest] == 2) {
 		fattree_net->WriteCredit(c, dest);
 	}
-	cout << "[DEBUG} WriteCredit exit" << endl;
 }
 
 Flit* DragonTree::ReadFlit(int dest) {
@@ -199,7 +192,6 @@ Flit* DragonTree::ReadFlit(int dest) {
 	// 1 = fly_net
 	// 2 = fattree
 	// 0 = null queue
-	cout << "[DEBUG] ReadFlit entry" << endl;
 	static int interleaver_curr = 1;
 
 	Flit* fly_flit = fly_net->ReadFlit(dest);
@@ -283,7 +275,6 @@ Flit* DragonTree::ReadFlit(int dest) {
 		if(!null_queue.empty()) { null_queue.pop_front(); }
 	}
 
-	cout << "[DEBUG] ReadFlit exit" << endl;
 	return f;
 }
 

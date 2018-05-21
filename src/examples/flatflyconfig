@@ -30,8 +30,9 @@
 
 // Flow control
 // Total number of VCs must match the above assignments
-num_vcs     = 8;
-vc_buf_size = 4;
+num_vcs     = 2; // was 8
+vc_buf_size = 128; // was 4
+channel_width = 128; //was not defined
 
 wait_for_tail_credit = 0;
 
@@ -43,7 +44,7 @@ sw_allocator = islip;
 alloc_iters  = 1;
 
 credit_delay   = 2;
-routing_delay  = 0;
+routing_delay  = 1; // was 0
 vc_alloc_delay = 1;
 sw_alloc_delay = 1;
 st_final_delay = 1;
@@ -58,7 +59,7 @@ internal_speedup  = 1.0;
 
 warmup_periods = 3;
 
-sample_period  = 1000;  
+sample_period  = 10000; // was 1000  
 
 sim_count          = 1;
 
@@ -91,26 +92,29 @@ yr = 2;
 routing_function = ran_min;
 
 //1: batch mode, 0: injection mode
-use_read_write = 0;
+//use_read_write = 0;
 
 //for injection mode
 packet_size = 1;
-injection_rate = 0.1;
+injection_rate = 0.95;
+injection_rate_uses_flits = 1;
 
 //for batch mode
-read_request_size=1;
-write_request_size=1;
-read_reply_size=1;
-write_reply_size=1;
+//read_request_size=1;
+//write_request_size=1;
+//read_reply_size=1;
+//write_reply_size=1;
 
-read_request_begin_vc  = 0;
-read_request_end_vc    = 3;
-write_reply_begin_vc   = 4;
-write_reply_end_vc     = 7;
-read_reply_begin_vc    = 4;
-read_reply_end_vc      = 7;
-write_request_begin_vc = 0;
-write_request_end_vc   = 3;
+//read_request_begin_vc  = 0;
+//read_request_end_vc    = 3;
+//write_reply_begin_vc   = 4;
+//write_reply_end_vc     = 7;
+//read_reply_begin_vc    = 4;
+//read_reply_end_vc      = 7;
+//write_request_begin_vc = 0;
+//write_request_end_vc   = 3;
 
 //latency: drains all packet, throughput:no drain?
-sim_type = latency;
+sim_type = throughput;
+
+stats_out = flatfly.m;
